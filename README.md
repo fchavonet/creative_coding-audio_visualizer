@@ -85,8 +85,8 @@ You can also test the web application online by clicking [here](https://fchavone
 
 <p align="center">
     <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="./assets/images/screenshot-dark.webp">
-        <source media="(prefers-color-scheme: light)" srcset="./assets/images/screenshot-light.webp">
+        <source media="(prefers-color-scheme: dark)" srcset="./assets/images/screenshots-light.webp">
+        <source media="(prefers-color-scheme: light)" srcset="./assets/images/screenshots-dark.webp">
         <img src="./assets/images/screenshot-dark.webp" alt="Screenshots">
     </picture>
 </p>
