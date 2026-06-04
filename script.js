@@ -1,79 +1,82 @@
-/*********************
-* RESPONSIVE WARNING *
-*********************/
+/******************************
+* RESPONSIVE WARNING BEHAVIOR *
+******************************/
 
 const responsiveWarning = document.getElementById("responsive-warning");
-// "true" if the site is optimized for responsive design, "false" if not.
-const responsiveDesign = true;
+// Enable/disable responsive warning.
+const responsiveDesign = false;
+// Mobile width limit.
+const threshold = 768;
 
-// Show mobile warning if the user is on mobile and responsive-design is false.
-if (!responsiveDesign && window.innerWidth <= 768) {
-	responsiveWarning.classList.add("show");
+// Show or hide modal based on screen size.
+function checkResponsiveState() {
+  const small = window.innerWidth <= threshold;
+
+  if (!responsiveDesign && small) {
+    if (!responsiveWarning.open) {
+      responsiveWarning.showModal();
+      document.body.classList.add("overflow-hidden");
+    }
+  } else {
+    if (responsiveWarning.open) {
+      responsiveWarning.close();
+      document.body.classList.remove("overflow-hidden");
+    }
+  }
 }
 
+// Initial check.
+checkResponsiveState();
 
-/***********************
+// Real-time resize detection.
+window.addEventListener("resize", checkResponsiveState);
+
+
+/************************
 * MODE TOGGLE BEHAVIOR *
-***********************/
+************************/
 
-// Get elements that change with the mode.
-const toggleModeBtn = document.getElementById("toggle-mode-btn");
-const portfolioLink = document.getElementById("portfolio-link");
-const body = document.body;
+const themeController = document.querySelector(".theme-controller");
 
-// Function to apply mode.
-function applyMode(mode) {
-	body.classList.remove("light-mode", "dark-mode");
-	body.classList.add(mode);
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
 
-	if (mode === "dark-mode") {
-		// Set dark mode styles.
-		toggleModeBtn.style.color = "rgb(245, 245, 245)";
-		toggleModeBtn.innerHTML = '<i class="bi bi-sun-fill"></i>';
+  if (theme === "black") {
+    document.documentElement.style.setProperty("--bar-color", "rgba(0, 255, 255, 1)");
+    document.documentElement.style.setProperty("--bar-glow", "rgba(0, 255, 255, 0.8)");
+  } else {
+    document.documentElement.style.setProperty("--bar-color", "rgb(255, 100, 0)");
+    document.documentElement.style.setProperty("--bar-glow", "rgba(255, 100, 0, 0.35)");
+  }
 
-		portfolioLink.style.color = "rgb(245, 245, 245)";
-
-		responsiveWarning.style.backgroundColor = "rgb(2, 4, 8)";
-
-		document.documentElement.style.setProperty("--bar-color", "rgba(0, 255, 255, 1)");
-		document.documentElement.style.setProperty("--bar-glow", "rgba(0, 255, 255, 0.8)");
-	} else {
-		// Set light mode styles.
-		toggleModeBtn.style.color = "rgb(2, 4, 8)";
-		toggleModeBtn.innerHTML = '<i class="bi bi-moon-stars-fill"></i>';
-
-		portfolioLink.style.color = "rgb(2, 4, 8)";
-
-		responsiveWarning.style.backgroundColor = "rgb(245, 245, 245)";
-
-		document.documentElement.style.setProperty("--bar-color", "rgb(255, 100, 0)");
-		document.documentElement.style.setProperty("--bar-glow", "rgba(255, 100, 0, 0.3)");
-	}
+  localStorage.setItem("theme", theme);
 }
 
 // Check and apply saved mode on page load.
-let savedMode = localStorage.getItem("mode");
+let savedTheme = localStorage.getItem("theme");
 
-if (savedMode === null) {
-	savedMode = "dark-mode"; // Default mode.
+if (savedTheme === null) {
+  savedTheme = "black";
 }
-applyMode(savedMode);
+
+applyTheme(savedTheme);
 
 // Toggle mode and save preference.
-toggleModeBtn.addEventListener("click", function () {
-	let newMode;
+if (themeController) {
+  if (savedTheme === "black") {
+    themeController.checked = true;
+  } else {
+    themeController.checked = false;
+  }
 
-	if (body.classList.contains("light-mode")) {
-		newMode = "dark-mode";
-	} else {
-		newMode = "light-mode";
-	}
-
-	applyMode(newMode);
-
-	// Save choice.
-	localStorage.setItem("mode", newMode);
-});
+  themeController.addEventListener("change", function () {
+    if (themeController.checked) {
+      applyTheme("black");
+    } else {
+      applyTheme("light");
+    }
+  });
+}
 
 
 /****************************
@@ -87,125 +90,139 @@ const MAX_DIAMETER = 250;   // Largest circle diameter.
 const MAX_BAR_LENGTH = 250; // Maximum bar length.
 
 // Canvas and audio state.
-let audioVisualizer, context;
-let width, height, centerX, centerY;
-let analyser, dataArray;
+let audioVisualizer;
+let context;
+let width;
+let height;
+let centerX;
+let centerY;
+let analyser;
+let dataArray;
 
 function getCSSVariable(name) {
-	return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
 // Initialize everything after DOM loads.
 window.addEventListener("DOMContentLoaded", function initialize() {
-	audioVisualizer = document.getElementById("audio-visualizer");
-	context = audioVisualizer.getContext("2d");
+  audioVisualizer = document.getElementById("audio-visualizer");
 
-	resizeCanvasToWindow();
-	window.addEventListener("resize", resizeCanvasToWindow);
+  if (!audioVisualizer) {
+    return;
+  }
 
-	setupAudio();
+  context = audioVisualizer.getContext("2d");
+
+  resizeCanvasToWindow();
+  window.addEventListener("resize", resizeCanvasToWindow);
+
+  setupAudio();
 });
 
 // Adjust audioVisualizer size to fit window.
 function resizeCanvasToWindow() {
-	width = window.innerWidth;
-	height = window.innerHeight;
-	audioVisualizer.width = width;
-	audioVisualizer.height = height;
-	centerX = width / 2;
-	centerY = height / 2;
+  width = window.innerWidth;
+  height = window.innerHeight;
+  audioVisualizer.width = width;
+  audioVisualizer.height = height;
+  centerX = width / 2;
+  centerY = height / 2;
 }
 
 // Access microphone and start audio processing.
 function setupAudio() {
-	navigator.mediaDevices.getUserMedia({ audio: true })
-		.then(function (stream) {
-			// Choose AudioContext implementation.
-			const AudioCtor = window.AudioContext || window.webkitAudioContext;
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(function (stream) {
+      // Choose AudioContext implementation.
+      const AudioCtor = window.AudioContext || window.webkitAudioContext;
 
-			const audioContext = new AudioCtor();
+      const audioContext = new AudioCtor();
 
-			// Create analyser node.
-			analyser = audioContext.createAnalyser();
-			analyser.fftSize = 256;
+      // Create analyser node.
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
 
-			// Connect microphone source to analyser.
-			const source = audioContext.createMediaStreamSource(stream);
-			source.connect(analyser);
+      // Connect microphone source to analyser.
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
 
-			// Prepare data array for frequency values.
-			dataArray = new Uint8Array(analyser.frequencyBinCount);
+      // Prepare data array for frequency values.
+      dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-			// Start drawing loop.
-			drawFrame();
-		})
-		.catch(function (error) {
-			console.error("Microphone access error:", error);
-		});
+      // Start drawing loop.
+      drawFrame();
+    })
+    .catch(function (error) {
+      console.error("Microphone access error:", error);
+    });
 }
 
 // Draw one frame and request next.
 function drawFrame() {
-	window.requestAnimationFrame(drawFrame);
+  window.requestAnimationFrame(drawFrame);
 
-	// Get current frequency data.
-	analyser.getByteFrequencyData(dataArray);
+  if (!analyser || !dataArray) {
+    return;
+  }
 
-	// Clear audioVisualizer.
-	context.clearRect(0, 0, width, height);
+  // Get current frequency data.
+  analyser.getByteFrequencyData(dataArray);
 
-	// Compute average frequency for circle radius.
-	let total = 0;
+  // Clear audioVisualizer.
+  context.clearRect(0, 0, width, height);
 
-	for (let i = 0; i < dataArray.length; i++) {
-		total += dataArray[i];
-	}
+  // Compute average frequency for circle radius.
+  let total = 0;
 
-	const average = total / dataArray.length;
-	const minR = MIN_DIAMETER / 2;
-	const maxR = MAX_DIAMETER / 2;
-	const radius = minR + (average / 255) * (maxR - minR);
+  for (let i = 0; i < dataArray.length; i++) {
+    total += dataArray[i];
+  }
 
-	const BAR_COLOR = getCSSVariable("--bar-color");
-	const BAR_GLOW = getCSSVariable("--bar-glow");
+  const average = total / dataArray.length;
+  const minR = MIN_DIAMETER / 2;
+  const maxR = MAX_DIAMETER / 2;
+  const radius = minR + (average / 255) * (maxR - minR);
 
-	// Draw central circle.
-	context.save();
-	context.shadowBlur = 10;
-	context.shadowColor = BAR_GLOW;
-	context.beginPath();
-	context.arc(centerX, centerY, radius, 0, Math.PI * 2);
-	context.strokeStyle = BAR_COLOR;
-	context.lineWidth = 5;
-	context.stroke();
-	context.restore();
+  const BAR_COLOR = getCSSVariable("--bar-color");
+  const BAR_GLOW = getCSSVariable("--bar-glow");
 
-	// Draw bars around circle.
-	const angleStep = (Math.PI * 2) / NUM_BARS;
+  // Draw central circle.
+  context.save();
+  context.shadowBlur = 10;
+  context.shadowColor = BAR_GLOW;
+  context.beginPath();
+  context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  context.strokeStyle = BAR_COLOR;
+  context.lineWidth = 5;
+  context.stroke();
+  context.restore();
 
-	for (let j = 0; j < NUM_BARS; j++) {
-		// Map bar index to frequency data.
-		const freqIndex = Math.floor(j * dataArray.length / NUM_BARS);
-		const amplitude = dataArray[freqIndex];
-		const length = (amplitude / 255) * MAX_BAR_LENGTH;
-		const angle = angleStep * j - Math.PI / 2;
+  // Draw bars around circle.
+  const angleStep = (Math.PI * 2) / NUM_BARS;
 
-		// Compute bar start and end points.
-		const startX = centerX + Math.cos(angle) * (radius + GAP);
-		const startY = centerY + Math.sin(angle) * (radius + GAP);
-		const endX = centerX + Math.cos(angle) * (radius + GAP + length);
-		const endY = centerY + Math.sin(angle) * (radius + GAP + length);
+  for (let j = 0; j < NUM_BARS; j++) {
+    // Map bar index to frequency data.
+    const freqIndex = Math.floor(j * dataArray.length / NUM_BARS);
+    const amplitude = dataArray[freqIndex];
+    const length = (amplitude / 255) * MAX_BAR_LENGTH;
+    const angle = angleStep * j - Math.PI / 2;
 
-		// Draw bar line.
-		context.save();
-		context.shadowBlur = 5;
-		context.shadowColor = BAR_GLOW;
-		context.beginPath();
-		context.moveTo(startX, startY);
-		context.lineTo(endX, endY);
-		context.strokeStyle = BAR_COLOR;
-		context.lineWidth = 2;
-		context.stroke();
-		context.restore();
-	}
+    // Compute bar start and end points.
+    const startX = centerX + Math.cos(angle) * (radius + GAP);
+    const startY = centerY + Math.sin(angle) * (radius + GAP);
+    const endX = centerX + Math.cos(angle) * (radius + GAP + length);
+    const endY = centerY + Math.sin(angle) * (radius + GAP + length);
+
+    // Draw bar line.
+    context.save();
+    context.shadowBlur = 5;
+    context.shadowColor = BAR_GLOW;
+    context.beginPath();
+    context.moveTo(startX, startY);
+    context.lineTo(endX, endY);
+    context.strokeStyle = BAR_COLOR;
+    context.lineWidth = 2;
+    context.stroke();
+    context.restore();
+  }
 }
